@@ -12,6 +12,10 @@ const shots = [
 ]
 
 const AUTOPLAY_MS = 3200
+// Сколько карточек видно одновременно (совпадает с CSS: flex-basis на 3 в ряд)
+const PER_VIEW = 3
+// Достижимые позиции прокрутки: 6 фото при 3 видимых = 4 позиции
+const PAGES = Math.max(1, shots.length - PER_VIEW + 1)
 
 export default function Gallery() {
   const trackRef = useRef<HTMLDivElement>(null)
@@ -20,23 +24,21 @@ export default function Gallery() {
   const reduce = useReducedMotion()
 
   // Прокрутка трека по горизонтали (страницу по вертикали не двигает)
-  const goTo = (index: number, loop = false) => {
+  const goTo = (index: number) => {
     const track = trackRef.current
     if (!track) return
-    const target = loop
-      ? (index + shots.length) % shots.length
-      : Math.max(0, Math.min(shots.length - 1, index))
+    const target = Math.max(0, Math.min(PAGES - 1, index))
     const cardWidth = track.scrollWidth / shots.length
     track.scrollTo({ left: cardWidth * target, behavior: 'smooth' })
   }
 
-  // Активную карточку определяем по позиции скролла
+  // Активную позицию определяем по скроллу, ограничивая числом реальных позиций
   useEffect(() => {
     const track = trackRef.current
     if (!track) return
     const onScroll = () => {
       const cardWidth = track.scrollWidth / shots.length
-      setActive(Math.round(track.scrollLeft / cardWidth))
+      setActive(Math.min(PAGES - 1, Math.round(track.scrollLeft / cardWidth)))
     }
     track.addEventListener('scroll', onScroll, { passive: true })
     return () => track.removeEventListener('scroll', onScroll)
@@ -48,7 +50,7 @@ export default function Gallery() {
     if (paused || reduce || !isDesktop) return
     const id = window.setInterval(() => {
       setActive((prev) => {
-        const next = (prev + 1) % shots.length
+        const next = (prev + 1) % PAGES
         goTo(next)
         return next
       })
@@ -75,7 +77,7 @@ export default function Gallery() {
             <button
               className="gallery__btn"
               onClick={() => goTo(active + 1)}
-              disabled={active === shots.length - 1}
+              disabled={active === PAGES - 1}
               aria-label="Следующая работа"
             >
               →
@@ -100,13 +102,13 @@ export default function Gallery() {
       </Reveal>
 
       <div className="gallery__dots">
-        {shots.map((_, i) => (
+        {Array.from({ length: PAGES }, (_, i) => (
           <button
             key={i}
             className="gallery__dot"
             data-active={i === active}
             onClick={() => goTo(i)}
-            aria-label={`Перейти к работе ${i + 1}`}
+            aria-label={`Позиция ${i + 1}`}
           />
         ))}
       </div>
